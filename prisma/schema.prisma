@@ -1,0 +1,311 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  image         String?
+  username      String?   @unique
+  bio           String?
+  nationality   String?
+  favoriteTeam  String?
+  currentCity   String?
+  languages     String[]  @default([])
+  goingAlone    Boolean   @default(false)
+  ageRange      String?
+  vibeTags      String[]  @default([])
+  accounts      Account[]
+  sessions      Session[]
+  watchParties  WatchParty[] @relation("CreatedParties")
+  rsvps         RSVP[]
+  messagesSent  ChatMessage[]
+  notifications Notification[]
+  reports       Report[]     @relation("ReportedBy")
+  reported      Report[]     @relation("ReportedUser")
+  connections   FriendConnection[] @relation("UserConnections")
+  connectedTo   FriendConnection[] @relation("ConnectedUsers")
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@map("users")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}
+
+model Team {
+  id          String   @id @default(cuid())
+  name        String
+  code        String   @unique
+  flag        String?
+  group       String?
+  homeMatches Match[]  @relation("HomeTeam")
+  awayMatches Match[]  @relation("AwayTeam")
+  createdAt   DateTime @default(now())
+
+  @@map("teams")
+}
+
+model Match {
+  id           String        @id @default(cuid())
+  homeTeamId   String
+  awayTeamId   String
+  homeTeam     Team          @relation("HomeTeam", fields: [homeTeamId], references: [id])
+  awayTeam     Team          @relation("AwayTeam", fields: [awayTeamId], references: [id])
+  kickoffTime  DateTime
+  venue        String
+  city         String
+  country      String
+  stage        String
+  status       MatchStatus   @default(UPCOMING)
+  homeScore    Int?
+  awayScore    Int?
+  watchParties WatchParty[]
+  chatMessages ChatMessage[]
+  createdAt    DateTime      @default(now())
+
+  @@map("matches")
+}
+
+enum MatchStatus {
+  UPCOMING
+  LIVE
+  FINISHED
+  POSTPONED
+}
+
+model Venue {
+  id              String       @id @default(cuid())
+  name            String
+  address         String
+  city            String
+  country         String
+  latitude        Float
+  longitude       Float
+  type            VenueType    @default(SPORTS_BAR)
+  capacity        Int?
+  imageUrl        String?
+  googlePlaceId   String?
+  atmosphereRating Float?
+  safetyRating    Float?
+  watchParties    WatchParty[]
+  createdAt       DateTime     @default(now())
+
+  @@map("venues")
+}
+
+enum VenueType {
+  SPORTS_BAR
+  STADIUM
+  FAN_ZONE
+  RESTAURANT
+  PRIVATE
+  OUTDOOR
+  HOTEL
+}
+
+model WatchParty {
+  id                String     @id @default(cuid())
+  title             String
+  description       String?
+  matchId           String?
+  match             Match?     @relation(fields: [matchId], references: [id])
+  venueId           String?
+  venue             Venue?     @relation(fields: [venueId], references: [id])
+  creatorId         String
+  creator           User       @relation("CreatedParties", fields: [creatorId], references: [id])
+  latitude          Float?
+  longitude         Float?
+  address           String?
+  vibe              PartyVibe  @default(CASUAL)
+  isPublic          Boolean    @default(true)
+  maxAttendees      Int?
+  currentAttendees  Int        @default(0)
+  safetyLevel       SafetyLevel @default(SAFE)
+  aiSummary         String?
+  crowdNationalities Json?
+  popularityScore   Float      @default(0)
+  status            PartyStatus @default(ACTIVE)
+  rsvps             RSVP[]
+  chatMessages      ChatMessage[]
+  reports           Report[]
+  imageUrl          String?
+  startTime         DateTime?
+  endTime           DateTime?
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+
+  @@map("watch_parties")
+}
+
+enum PartyVibe {
+  HARDCORE
+  CASUAL
+  PARTY
+  FAMILY
+  CHILL
+  INTERNATIONAL
+}
+
+enum SafetyLevel {
+  SAFE
+  MODERATE
+  CAUTION
+}
+
+enum PartyStatus {
+  ACTIVE
+  CANCELLED
+  COMPLETED
+}
+
+model RSVP {
+  id           String     @id @default(cuid())
+  userId       String
+  watchPartyId String
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  watchParty   WatchParty @relation(fields: [watchPartyId], references: [id], onDelete: Cascade)
+  status       RSVPStatus @default(GOING)
+  createdAt    DateTime   @default(now())
+
+  @@unique([userId, watchPartyId])
+  @@map("rsvps")
+}
+
+enum RSVPStatus {
+  GOING
+  MAYBE
+  NOT_GOING
+}
+
+model ChatMessage {
+  id             String      @id @default(cuid())
+  content        String      @db.Text
+  userId         String
+  user           User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  matchId        String?
+  match          Match?      @relation(fields: [matchId], references: [id])
+  watchPartyId   String?
+  watchParty     WatchParty? @relation(fields: [watchPartyId], references: [id])
+  translatedContent Json?
+  isPinned       Boolean     @default(false)
+  isMeetup       Boolean     @default(false)
+  emoji          String?
+  replyToId      String?
+  replyTo        ChatMessage? @relation("Replies", fields: [replyToId], references: [id])
+  replies        ChatMessage[] @relation("Replies")
+  isModerated    Boolean     @default(false)
+  createdAt      DateTime    @default(now())
+
+  @@map("chat_messages")
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      NotificationType
+  title     String
+  message   String
+  data      Json?
+  isRead    Boolean          @default(false)
+  createdAt DateTime         @default(now())
+
+  @@map("notifications")
+}
+
+enum NotificationType {
+  MATCH_REMINDER
+  WATCH_PARTY_ALERT
+  AI_RECOMMENDATION
+  CHAT_UPDATE
+  RSVP_CONFIRMATION
+  FRIEND_REQUEST
+  PARTY_CANCELLED
+}
+
+model Report {
+  id           String       @id @default(cuid())
+  reporterId   String
+  reporter     User         @relation("ReportedBy", fields: [reporterId], references: [id])
+  reportedUserId String?
+  reportedUser User?        @relation("ReportedUser", fields: [reportedUserId], references: [id])
+  watchPartyId String?
+  watchParty   WatchParty?  @relation(fields: [watchPartyId], references: [id])
+  reason       String
+  description  String?
+  status       ReportStatus @default(PENDING)
+  createdAt    DateTime     @default(now())
+
+  @@map("reports")
+}
+
+enum ReportStatus {
+  PENDING
+  REVIEWED
+  RESOLVED
+  DISMISSED
+}
+
+model FriendConnection {
+  id          String           @id @default(cuid())
+  userId      String
+  user        User             @relation("UserConnections", fields: [userId], references: [id])
+  connectedId String
+  connected   User             @relation("ConnectedUsers", fields: [connectedId], references: [id])
+  status      ConnectionStatus @default(PENDING)
+  createdAt   DateTime         @default(now())
+
+  @@unique([userId, connectedId])
+  @@map("friend_connections")
+}
+
+enum ConnectionStatus {
+  PENDING
+  ACCEPTED
+  BLOCKED
+}
