@@ -8,9 +8,7 @@ const nextConfig: NextConfig = {
       { protocol: "https", hostname: "*.supabase.co" },
     ],
   },
-  experimental: {
-    serverComponentsExternalPackages: ["@prisma/client", "prisma"],
-  },
+  serverExternalPackages: ["@prisma/client", "prisma"],
 };
 
 export default nextConfig;
