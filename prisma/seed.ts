@@ -1,257 +1,323 @@
 import { PrismaClient } from "@prisma/client";
+import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log("🌱 Starting seed...");
+  console.log("🌱 Seeding V2 database...");
 
   // Clear existing data
   await prisma.chatMessage.deleteMany();
-  await prisma.rSVP.deleteMany();
-  await prisma.watchParty.deleteMany();
-  await prisma.venue.deleteMany();
-  await prisma.match.deleteMany();
-  await prisma.team.deleteMany();
+  await prisma.chatMember.deleteMany();
+  await prisma.chat.deleteMany();
+  await prisma.tagAlongRequest.deleteMany();
+  await prisma.talkAlongRequest.deleteMany();
+  await prisma.eventAttendance.deleteMany();
+  await prisma.ticket.deleteMany();
   await prisma.notification.deleteMany();
+  await prisma.eventHashtag.deleteMany();
+  await prisma.tagAlongHashtag.deleteMany();
+  await prisma.talkAlongHashtag.deleteMany();
+  await prisma.eventMedia.deleteMany();
+  await prisma.boostedEvent.deleteMany();
+  await prisma.report.deleteMany();
+  await prisma.payment.deleteMany();
+  await prisma.tagAlongPost.deleteMany();
+  await prisma.talkAlongPost.deleteMany();
+  await prisma.event.deleteMany();
+  await prisma.hashtag.deleteMany();
+  await prisma.session.deleteMany();
+  await prisma.account.deleteMany();
+  await prisma.user.deleteMany();
 
-  // Seed Teams
-  const teams = await Promise.all([
-    prisma.team.create({ data: { name: "Argentina", code: "ARG", flag: "🇦🇷", group: "A" } }),
-    prisma.team.create({ data: { name: "France", code: "FRA", flag: "🇫🇷", group: "A" } }),
-    prisma.team.create({ data: { name: "Brazil", code: "BRA", flag: "🇧🇷", group: "B" } }),
-    prisma.team.create({ data: { name: "England", code: "ENG", flag: "🏴󠁧󠁢󠁥󠁮󠁧󠁿", group: "B" } }),
-    prisma.team.create({ data: { name: "Germany", code: "GER", flag: "🇩🇪", group: "C" } }),
-    prisma.team.create({ data: { name: "Spain", code: "ESP", flag: "🇪🇸", group: "C" } }),
-    prisma.team.create({ data: { name: "Portugal", code: "POR", flag: "🇵🇹", group: "D" } }),
-    prisma.team.create({ data: { name: "Netherlands", code: "NED", flag: "🇳🇱", group: "D" } }),
-  ]);
-
-  const [argentina, france, brazil, england, germany, spain, portugal, netherlands] = teams;
-
-  console.log("✅ Teams seeded");
-
-  // Seed Venues
-  const venues = await Promise.all([
-    prisma.venue.create({
-      data: {
-        name: "Times Square Sports Complex",
-        address: "1500 Broadway, New York, NY",
-        city: "New York",
-        country: "USA",
-        latitude: 40.7580,
-        longitude: -73.9855,
-        type: "SPORTS_BAR",
-        capacity: 300,
-        atmosphereRating: 4.8,
-        safetyRating: 4.5,
-      },
-    }),
-    prisma.venue.create({
-      data: {
-        name: "Brooklyn Fan Zone",
-        address: "550 Atlantic Ave, Brooklyn, NY",
-        city: "New York",
-        country: "USA",
-        latitude: 40.6845,
-        longitude: -73.9766,
-        type: "FAN_ZONE",
-        capacity: 500,
-        atmosphereRating: 4.6,
-        safetyRating: 4.7,
-      },
-    }),
-    prisma.venue.create({
-      data: {
-        name: "Midtown Soccer Lounge",
-        address: "245 E 49th St, New York, NY",
-        city: "New York",
-        country: "USA",
-        latitude: 40.7549,
-        longitude: -73.9693,
-        type: "SPORTS_BAR",
-        capacity: 150,
-        atmosphereRating: 4.9,
-        safetyRating: 4.8,
-      },
-    }),
-  ]);
-
-  console.log("✅ Venues seeded");
-
-  // Seed Matches
-  const now = new Date();
-  const hoursFromNow = (h: number) => new Date(now.getTime() + h * 3600 * 1000);
-
-  const matches = await Promise.all([
-    prisma.match.create({
-      data: {
-        homeTeamId: argentina.id,
-        awayTeamId: france.id,
-        kickoffTime: hoursFromNow(2),
-        venue: "Lusail Iconic Stadium",
-        city: "Lusail",
-        country: "Qatar",
-        stage: "Group Stage",
-        status: "UPCOMING",
-      },
-    }),
-    prisma.match.create({
-      data: {
-        homeTeamId: brazil.id,
-        awayTeamId: england.id,
-        kickoffTime: hoursFromNow(5),
-        venue: "Al Bayt Stadium",
-        city: "Al Khor",
-        country: "Qatar",
-        stage: "Group Stage",
-        status: "UPCOMING",
-      },
-    }),
-    prisma.match.create({
-      data: {
-        homeTeamId: germany.id,
-        awayTeamId: spain.id,
-        kickoffTime: hoursFromNow(-1),
-        venue: "Education City Stadium",
-        city: "Al Rayyan",
-        country: "Qatar",
-        stage: "Group Stage",
-        status: "LIVE",
-        homeScore: 1,
-        awayScore: 2,
-      },
-    }),
-  ]);
-
-  console.log("✅ Matches seeded");
-
-  // Seed demo users
-  const demoUsers = await Promise.all([
+  // Create users
+  const hash = await bcrypt.hash("password123", 12);
+  const [alex, priya, marcus] = await Promise.all([
     prisma.user.create({
       data: {
-        name: "Carlos Rivera",
-        email: "carlos@demo.com",
-        username: "carlosriva",
-        nationality: "Argentina",
-        favoriteTeam: "Argentina",
-        currentCity: "New York",
-        languages: ["Spanish", "English"],
-        goingAlone: false,
-        ageRange: "25-34",
-        vibeTags: ["hardcore_fan", "party_crowd"],
-        bio: "Argentine football fanatic living in New York. Vamos Argentina! 🇦🇷",
+        name: "Alex Rivera",
+        email: "alex@konnecteer.com",
+        username: "alexr",
+        passwordHash: hash,
+        bio: "Event organizer & connector. Always down for new experiences.",
+        location: "New York City",
+        isVerified: true,
+        image: "https://i.pravatar.cc/150?img=11",
       },
     }),
     prisma.user.create({
       data: {
-        name: "Ana Lima",
-        email: "ana@demo.com",
-        username: "analima",
-        nationality: "Brazil",
-        favoriteTeam: "Brazil",
-        currentCity: "New York",
-        languages: ["Portuguese", "English"],
-        goingAlone: false,
-        ageRange: "25-34",
-        vibeTags: ["chill_viewer", "casual_fan"],
-        bio: "Brazilian fan bringing the Samba vibes to NYC 🇧🇷",
+        name: "Priya Sharma",
+        email: "priya@konnecteer.com",
+        username: "priyasharma",
+        passwordHash: hash,
+        bio: "Tech & fitness enthusiast. Love hiking and hackathons.",
+        location: "San Francisco",
+        isVerified: true,
+        image: "https://i.pravatar.cc/150?img=23",
       },
     }),
     prisma.user.create({
       data: {
-        name: "Yuki Tanaka",
-        email: "yuki@demo.com",
-        username: "yukitanaka",
-        nationality: "Japan",
-        favoriteTeam: "Japan",
-        currentCity: "New York",
-        languages: ["Japanese", "English"],
-        goingAlone: true,
-        ageRange: "25-34",
-        vibeTags: ["international_traveler", "casual_fan"],
-        bio: "Japanese fan traveling to watch every match! 🇯🇵 ✈️",
+        name: "Marcus Thompson",
+        email: "marcus@konnecteer.com",
+        username: "marcust",
+        passwordHash: hash,
+        bio: "Music producer and concert lover. Always at shows.",
+        location: "Los Angeles",
+        image: "https://i.pravatar.cc/150?img=52",
       },
     }),
   ]);
 
-  console.log("✅ Demo users seeded");
+  // Create hashtags
+  const tagNames = ["networking", "outdoor", "music", "fitness", "tech", "food", "travel", "art", "community", "hiking"];
+  const hashtags: Record<string, { id: string }> = {};
+  for (const tag of tagNames) {
+    hashtags[tag] = await prisma.hashtag.create({
+      data: { tag, useCount: Math.floor(Math.random() * 100) + 5 },
+    });
+  }
 
-  // Seed Watch Parties
-  await Promise.all([
-    prisma.watchParty.create({
+  // Create events
+  const events = await Promise.all([
+    prisma.event.create({
       data: {
-        title: "Argentina Mega Watch Party 🇦🇷",
-        description: "Join 200+ Argentina fans for the biggest watch party in the city!",
-        matchId: matches[0].id,
-        venueId: venues[0].id,
-        creatorId: demoUsers[0].id,
-        latitude: 40.758,
-        longitude: -73.9855,
-        address: "Times Square Sports Complex, New York",
-        vibe: "PARTY",
-        isPublic: true,
-        maxAttendees: 300,
-        currentAttendees: 187,
-        safetyLevel: "SAFE",
-        aiSummary: "High-energy Argentina fan crowd expected with 200+ attendees. Perfect for die-hard fans!",
-        crowdNationalities: { Argentina: 60, USA: 20, Brazil: 8, Uruguay: 7, Other: 5 },
-        popularityScore: 9.2,
-        startTime: hoursFromNow(1),
-        endTime: hoursFromNow(4),
+        title: "Rooftop Networking Night",
+        description: "Connect with founders, builders, and creatives at NYC's hottest rooftop venue. Drinks, music, and real conversations.",
+        hostId: alex.id,
+        location: "230 Fifth Ave Rooftop, New York",
+        startTime: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000),
+        endTime: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000 + 3 * 60 * 60 * 1000),
+        category: "NETWORKING",
+        isFree: false,
+        price: 25,
+        maxAttendees: 100,
+        coverImage: "https://images.unsplash.com/photo-1511795409834-ef04bbd61622?w=800&q=80",
+        status: "ACTIVE",
+        rankScore: 95,
+        isBoosted: true,
+        boostExpiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        viewCount: 342,
       },
     }),
-    prisma.watchParty.create({
+    prisma.event.create({
       data: {
-        title: "Brazil Fans — Samba Night 🇧🇷",
-        description: "Chill vibes, caipirinhas, and pure Samba energy.",
-        matchId: matches[1].id,
-        creatorId: demoUsers[1].id,
-        latitude: 40.7484,
-        longitude: -73.9967,
-        address: "Midtown Manhattan, New York",
-        vibe: "CHILL",
-        isPublic: true,
+        title: "Morning Trail Run — Griffith Park",
+        description: "5K scenic trail run through Griffith Park. All fitness levels welcome! We finish with coffee at a nearby cafe.",
+        hostId: priya.id,
+        location: "Griffith Park, Los Angeles",
+        startTime: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000),
+        category: "FITNESS",
+        isFree: true,
+        maxAttendees: 30,
+        coverImage: "https://images.unsplash.com/photo-1476480862126-209bfaa8edc8?w=800&q=80",
+        status: "ACTIVE",
+        rankScore: 78,
+        viewCount: 156,
+      },
+    }),
+    prisma.event.create({
+      data: {
+        title: "Underground Music Showcase",
+        description: "4 emerging artists performing live jazz, indie, and electronic. Limited tickets — an intimate 80-person venue in Brooklyn.",
+        hostId: marcus.id,
+        location: "The Lot Radio, Brooklyn NY",
+        startTime: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000),
+        category: "MUSIC",
+        isFree: false,
+        price: 15,
         maxAttendees: 80,
-        currentAttendees: 52,
-        safetyLevel: "SAFE",
-        aiSummary: "Intimate Brazil fan gathering with amazing chill vibes.",
-        crowdNationalities: { Brazil: 70, Portugal: 10, Colombia: 8, USA: 7, Other: 5 },
-        popularityScore: 8.4,
-        startTime: hoursFromNow(4),
-        endTime: hoursFromNow(7),
+        coverImage: "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=800&q=80",
+        status: "ACTIVE",
+        rankScore: 82,
+        viewCount: 210,
       },
     }),
-    prisma.watchParty.create({
+    prisma.event.create({
       data: {
-        title: "International Fan Zone 🌍",
-        description: "Meet fans from 30+ countries! Most diverse watch party in the city.",
-        creatorId: demoUsers[2].id,
-        latitude: 40.7614,
-        longitude: -73.9776,
-        address: "Midtown East, New York",
-        vibe: "INTERNATIONAL",
-        isPublic: true,
+        title: "Street Food Festival",
+        description: "30+ food vendors, live music, and local artisans. Free entry — just show up hungry!",
+        hostId: alex.id,
+        location: "Prospect Park, Brooklyn",
+        startTime: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        category: "FOOD",
+        isFree: true,
+        coverImage: "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=800&q=80",
+        status: "ACTIVE",
+        rankScore: 65,
+        viewCount: 420,
+      },
+    }),
+    prisma.event.create({
+      data: {
+        title: "AI & Startups Hackathon",
+        description: "24-hour hackathon. Build, pitch, win. $5K prize pool. Teams of 2-4. Food and Red Bull provided.",
+        hostId: priya.id,
+        location: "WeWork SOMA, San Francisco",
+        startTime: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000),
+        category: "TECH",
+        isFree: false,
+        price: 10,
         maxAttendees: 200,
-        currentAttendees: 143,
-        safetyLevel: "SAFE",
-        aiSummary: "The most diverse watch party with fans from 30+ countries. AI translation available!",
-        crowdNationalities: { Japan: 15, Morocco: 12, USA: 10, France: 8, Brazil: 7, Other: 48 },
-        popularityScore: 9.5,
-        startTime: hoursFromNow(25),
-        endTime: hoursFromNow(28),
+        coverImage: "https://images.unsplash.com/photo-1504384308090-c894fdcc538d?w=800&q=80",
+        status: "ACTIVE",
+        rankScore: 88,
+        viewCount: 534,
       },
     }),
   ]);
 
-  console.log("✅ Watch parties seeded");
-  console.log("🎉 Seed complete!");
+  // Link hashtags to events
+  await prisma.eventHashtag.createMany({
+    data: [
+      { eventId: events[0].id, hashtagId: hashtags["networking"].id },
+      { eventId: events[1].id, hashtagId: hashtags["fitness"].id },
+      { eventId: events[1].id, hashtagId: hashtags["outdoor"].id },
+      { eventId: events[2].id, hashtagId: hashtags["music"].id },
+      { eventId: events[4].id, hashtagId: hashtags["tech"].id },
+    ],
+  });
+
+  // Create event chats
+  for (const event of events) {
+    await prisma.chat.create({
+      data: {
+        type: "EVENT",
+        eventId: event.id,
+        members: { create: { userId: event.hostId, isAdmin: true } },
+      },
+    });
+  }
+
+  // Create attendances
+  await prisma.eventAttendance.createMany({
+    data: [
+      { eventId: events[0].id, userId: priya.id },
+      { eventId: events[0].id, userId: marcus.id },
+      { eventId: events[1].id, userId: alex.id },
+      { eventId: events[2].id, userId: priya.id },
+      { eventId: events[4].id, userId: marcus.id },
+    ],
+  });
+
+  // Create Tag Along posts
+  const tagAlong1 = await prisma.tagAlongPost.create({
+    data: {
+      creatorId: priya.id,
+      title: "Sunday sunrise hike — anyone?",
+      description: "Casual 2-hour sunrise hike at Marin Headlands. Easy trail, gorgeous views. I have a car, can give 2 people a lift.",
+      location: "Marin Headlands, CA",
+      activity: "Hiking",
+      scheduledAt: new Date(Date.now() + 4 * 24 * 60 * 60 * 1000),
+      maxPeople: 4,
+      category: "HIKE",
+      vibeTags: ["early-bird", "chill", "nature-lover"],
+      status: "ACTIVE",
+      rankScore: 72,
+    },
+  });
+
+  const tagAlong2 = await prisma.tagAlongPost.create({
+    data: {
+      creatorId: marcus.id,
+      title: "Coffee & vinyl browsing Saturday morning",
+      description: "Hitting a few record stores in the East Village then grabbing brunch. Looking for people who love music and good coffee.",
+      location: "East Village, New York",
+      activity: "Coffee & Shopping",
+      scheduledAt: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000),
+      maxPeople: 3,
+      category: "MUSIC",
+      vibeTags: ["music-lover", "chill", "city-explorer"],
+      status: "ACTIVE",
+      rankScore: 55,
+    },
+  });
+
+  // Create tag along chats
+  await prisma.chat.create({
+    data: {
+      type: "TAG_ALONG",
+      tagAlongPostId: tagAlong1.id,
+      members: { create: { userId: priya.id, isAdmin: true } },
+    },
+  });
+  await prisma.chat.create({
+    data: {
+      type: "TAG_ALONG",
+      tagAlongPostId: tagAlong2.id,
+      members: { create: { userId: marcus.id, isAdmin: true } },
+    },
+  });
+
+  // Create Talk Along posts
+  const talkAlong1 = await prisma.talkAlongPost.create({
+    data: {
+      creatorId: alex.id,
+      title: "What's the best way to find community in a new city?",
+      description: "I just moved to NYC and struggling to meet genuine people outside of work. Would love to hear strategies from others who've navigated this.",
+      topic: "Life Advice",
+      status: "ACTIVE",
+      memberCount: 1,
+      rankScore: 85,
+    },
+  });
+
+  const talkAlong2 = await prisma.talkAlongPost.create({
+    data: {
+      creatorId: priya.id,
+      title: "Is building in public worth it for indie hackers?",
+      description: "I've been building in public for 3 months. Pros: accountability, feedback, followers. Cons: competition, distraction. Thoughts?",
+      topic: "Entrepreneurship",
+      status: "ACTIVE",
+      memberCount: 1,
+      rankScore: 91,
+    },
+  });
+
+  // Create talk along chats
+  await prisma.chat.create({
+    data: {
+      type: "TALK_ALONG",
+      talkAlongPostId: talkAlong1.id,
+      members: { create: { userId: alex.id, isAdmin: true } },
+    },
+  });
+  await prisma.chat.create({
+    data: {
+      type: "TALK_ALONG",
+      talkAlongPostId: talkAlong2.id,
+      members: { create: { userId: priya.id, isAdmin: true } },
+    },
+  });
+
+  // Create private chat between alex and priya
+  await prisma.chat.create({
+    data: {
+      type: "PRIVATE",
+      members: {
+        create: [
+          { userId: alex.id },
+          { userId: priya.id },
+        ],
+      },
+      messages: {
+        create: [
+          { senderId: alex.id, content: "Hey Priya! Loved your talk at the hackathon 👋" },
+          { senderId: priya.id, content: "Thanks Alex! Great to connect. Are you going to the rooftop event?" },
+        ],
+      },
+    },
+  });
+
+  console.log("✅ Seeded:");
+  console.log(`  👥 3 users (email: alex@konnecteer.com, priya@konnecteer.com, marcus@konnecteer.com — pw: password123)`);
+  console.log(`  🎉 ${events.length} events`);
+  console.log(`  🏃 2 tag alongs`);
+  console.log(`  💬 2 talk alongs`);
+  console.log(`  #️⃣  ${tagNames.length} hashtags`);
 }
 
 main()
-  .catch((e) => {
-    console.error(e);
-    process.exit(1);
-  })
-  .finally(async () => {
-    await prisma.$disconnect();
-  });
+  .catch((e) => { console.error(e); process.exit(1); })
+  .finally(() => prisma.$disconnect());

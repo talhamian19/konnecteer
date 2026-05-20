@@ -1,253 +1,263 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { motion } from "framer-motion";
-import { Search, Filter, SlidersHorizontal, Sparkles, X } from "lucide-react";
-import { WatchParty, PartyVibe, SafetyLevel } from "@/types";
-import { MOCK_WATCH_PARTIES } from "@/lib/mock-data";
-import { WatchPartyCard } from "@/components/watch-party/WatchPartyCard";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Skeleton } from "@/components/ui/skeleton";
-import { cn } from "@/lib/utils";
+import { useState, useEffect, useCallback } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import Link from "next/link";
+import Image from "next/image";
+import { useInView } from "react-intersection-observer";
+import {
+  MapPin, Clock, Users, Ticket, Tag, MessageSquare,
+  ChevronRight, Flame, Zap, Filter, SlidersHorizontal,
+  Calendar, TrendingUp,
+} from "lucide-react";
+import { format } from "date-fns";
+import type { FeedItem } from "@/types";
 
-const VIBE_OPTIONS: PartyVibe[] = ["HARDCORE", "PARTY", "CASUAL", "CHILL", "FAMILY", "INTERNATIONAL"];
-const SAFETY_OPTIONS: SafetyLevel[] = ["SAFE", "MODERATE", "CAUTION"];
+const CATEGORIES = ["All", "SPORTS", "MUSIC", "FOOD", "HIKE", "PARTY", "TRAVEL", "TECH", "ART", "FITNESS", "NETWORKING"];
+const TYPES = ["all", "events", "tag-along", "talk-along"];
 
-const VIBE_LABELS: Record<PartyVibe, string> = {
-  HARDCORE: "🔥 Hardcore",
-  PARTY: "🎉 Party",
-  CASUAL: "😎 Casual",
-  CHILL: "🛋️ Chill",
-  FAMILY: "👨‍👩‍👧‍👦 Family",
-  INTERNATIONAL: "🌍 International",
-};
+function EventCard({ item }: { item: Extract<FeedItem, { type: "event" }> }) {
+  const e = item.data;
+  const hasImage = e.coverImage || (e.media && e.media.length > 0);
+  const imgUrl = e.coverImage || e.media?.[0]?.url;
+  return (
+    <Link href={`/explore/${e.id}`}>
+      <motion.div
+        whileHover={{ y: -2 }}
+        className="bg-white/[0.03] border border-white/[0.07] rounded-2xl overflow-hidden hover:border-white/[0.15] transition-all"
+      >
+        {imgUrl ? (
+          <div className="relative h-44 overflow-hidden">
+            <Image src={imgUrl} alt={e.title} fill className="object-cover" />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+            {e.isBoosted && (
+              <div className="absolute top-2 left-2 flex items-center gap-1 bg-yellow-500/90 text-black text-xs font-bold px-2 py-0.5 rounded-full">
+                <Zap className="w-3 h-3" /> Boosted
+              </div>
+            )}
+            <div className="absolute bottom-2 left-3 right-3">
+              <span className="text-xs text-white/70 bg-black/40 px-2 py-0.5 rounded-full">
+                {e.category}
+              </span>
+            </div>
+          </div>
+        ) : (
+          <div className="h-44 bg-gradient-to-br from-emerald-500/10 to-cyan-500/10 flex items-center justify-center">
+            <Calendar className="w-8 h-8 text-emerald-400/50" />
+          </div>
+        )}
+        <div className="p-4">
+          <h3 className="font-semibold text-white text-sm line-clamp-1 mb-1">{e.title}</h3>
+          <div className="flex items-center gap-1 text-gray-400 text-xs mb-2">
+            <MapPin className="w-3 h-3 flex-shrink-0" />
+            <span className="truncate">{e.location}</span>
+          </div>
+          <div className="flex items-center gap-1 text-gray-400 text-xs mb-3">
+            <Clock className="w-3 h-3 flex-shrink-0" />
+            <span>{format(new Date(e.startTime), "MMM d · h:mm a")}</span>
+          </div>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-xs text-gray-400">
+              <Users className="w-3 h-3" />
+              <span>{e._count?.attendances || 0} going</span>
+            </div>
+            <span className={`text-xs font-semibold ${e.isFree ? "text-emerald-400" : "text-white"}`}>
+              {e.isFree ? "Free" : `$${e.price}`}
+            </span>
+          </div>
+        </div>
+      </motion.div>
+    </Link>
+  );
+}
+
+function TagAlongCard({ item }: { item: Extract<FeedItem, { type: "tagAlong" }> }) {
+  const t = item.data;
+  return (
+    <Link href={`/tag-along/${t.id}`}>
+      <motion.div
+        whileHover={{ y: -2 }}
+        className="bg-white/[0.03] border border-white/[0.07] rounded-2xl p-4 hover:border-blue-500/30 transition-all"
+      >
+        <div className="flex items-center gap-2 mb-3">
+          <div className="w-8 h-8 rounded-full overflow-hidden bg-blue-500/20 flex items-center justify-center flex-shrink-0">
+            {t.creator.image ? (
+              <Image src={t.creator.image} alt="" width={32} height={32} className="object-cover" />
+            ) : (
+              <Users className="w-4 h-4 text-blue-400" />
+            )}
+          </div>
+          <div className="min-w-0">
+            <p className="text-xs text-gray-400 truncate">{t.creator.name}</p>
+            <span className="text-[10px] bg-blue-500/15 text-blue-400 px-1.5 py-0.5 rounded-full">Tag Along</span>
+          </div>
+        </div>
+        <h3 className="font-semibold text-white text-sm line-clamp-2 mb-2">{t.title}</h3>
+        <div className="flex items-center gap-1 text-gray-400 text-xs mb-2">
+          <MapPin className="w-3 h-3" />
+          <span className="truncate">{t.location}</span>
+        </div>
+        <div className="flex items-center gap-1 text-gray-400 text-xs mb-3">
+          <Clock className="w-3 h-3" />
+          <span>{format(new Date(t.scheduledAt), "MMM d · h:mm a")}</span>
+        </div>
+        <div className="flex items-center justify-between text-xs">
+          <span className="text-blue-400 font-medium">{t.activity}</span>
+          <span className="text-gray-500">{t._count?.requests || 0} requests</span>
+        </div>
+      </motion.div>
+    </Link>
+  );
+}
+
+function TalkAlongCard({ item }: { item: Extract<FeedItem, { type: "talkAlong" }> }) {
+  const t = item.data;
+  return (
+    <Link href={`/talk-along/${t.id}`}>
+      <motion.div
+        whileHover={{ y: -2 }}
+        className="bg-white/[0.03] border border-white/[0.07] rounded-2xl p-4 hover:border-purple-500/30 transition-all"
+      >
+        <div className="flex items-center gap-2 mb-3">
+          <div className="w-8 h-8 rounded-full overflow-hidden bg-purple-500/20 flex items-center justify-center flex-shrink-0">
+            {t.creator.image ? (
+              <Image src={t.creator.image} alt="" width={32} height={32} className="object-cover" />
+            ) : (
+              <MessageSquare className="w-4 h-4 text-purple-400" />
+            )}
+          </div>
+          <div>
+            <p className="text-xs text-gray-400 truncate">{t.creator.name}</p>
+            <span className="text-[10px] bg-purple-500/15 text-purple-400 px-1.5 py-0.5 rounded-full">Talk Along</span>
+          </div>
+        </div>
+        <h3 className="font-semibold text-white text-sm line-clamp-2 mb-2">{t.title}</h3>
+        <p className="text-gray-400 text-xs line-clamp-2 mb-3">{t.description || t.topic}</p>
+        <div className="flex items-center justify-between text-xs">
+          <span className="text-purple-400 font-medium truncate">{t.topic}</span>
+          <span className="text-gray-500">{t.memberCount} members</span>
+        </div>
+      </motion.div>
+    </Link>
+  );
+}
 
 export default function ExplorePage() {
-  const [parties, setParties] = useState<WatchParty[]>(MOCK_WATCH_PARTIES);
-  const [filtered, setFiltered] = useState<WatchParty[]>(MOCK_WATCH_PARTIES);
-  const [search, setSearch] = useState("");
-  const [selectedVibes, setSelectedVibes] = useState<PartyVibe[]>([]);
-  const [selectedSafety, setSelectedSafety] = useState<SafetyLevel | "">("");
-  const [showFilters, setShowFilters] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [aiMode, setAiMode] = useState(false);
-  const [aiSummary, setAiSummary] = useState("");
+  const [items, setItems] = useState<FeedItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [hasMore, setHasMore] = useState(true);
+  const [selectedType, setSelectedType] = useState("all");
+  const [selectedCategory, setSelectedCategory] = useState("All");
+
+  const { ref, inView } = useInView({ threshold: 0 });
+
+  const fetchFeed = useCallback(async (reset = false) => {
+    if (!hasMore && !reset) return;
+    setLoading(true);
+    try {
+      const params = new URLSearchParams({ type: selectedType });
+      if (selectedCategory !== "All") params.set("category", selectedCategory);
+      const res = await fetch(`/api/feed?${params}`);
+      const data = await res.json();
+      setItems(reset ? data.items : (prev) => [...prev, ...data.items]);
+      setHasMore(data.hasMore);
+    } finally {
+      setLoading(false);
+    }
+  }, [selectedType, selectedCategory, hasMore]);
 
   useEffect(() => {
-    let result = parties;
+    setItems([]);
+    setHasMore(true);
+    fetchFeed(true);
+  }, [selectedType, selectedCategory]);
 
-    if (search) {
-      result = result.filter(
-        (p) =>
-          p.title.toLowerCase().includes(search.toLowerCase()) ||
-          p.description?.toLowerCase().includes(search.toLowerCase()) ||
-          p.address?.toLowerCase().includes(search.toLowerCase())
-      );
-    }
-
-    if (selectedVibes.length > 0) {
-      result = result.filter((p) => selectedVibes.includes(p.vibe));
-    }
-
-    if (selectedSafety) {
-      result = result.filter((p) => p.safetyLevel === selectedSafety);
-    }
-
-    setFiltered(result);
-  }, [search, selectedVibes, selectedSafety, parties]);
-
-  const toggleVibe = (vibe: PartyVibe) => {
-    setSelectedVibes((prev) =>
-      prev.includes(vibe) ? prev.filter((v) => v !== vibe) : [...prev, vibe]
-    );
-  };
-
-  const getAIRecommendations = async () => {
-    setIsLoading(true);
-    setAiMode(true);
-    try {
-      const res = await fetch("/api/ai/recommend", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ user: {}, userQuery: search }),
-      });
-      const data = await res.json();
-      if (data.rankedParties) {
-        setFiltered(data.rankedParties);
-        setAiSummary(data.summary);
-      }
-    } catch {
-      setFiltered(MOCK_WATCH_PARTIES);
-      setAiSummary("Here are the top watch parties for you tonight!");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const clearFilters = () => {
-    setSelectedVibes([]);
-    setSelectedSafety("");
-    setSearch("");
-    setAiMode(false);
-    setAiSummary("");
-    setFiltered(parties);
-  };
-
-  const hasFilters = selectedVibes.length > 0 || selectedSafety || search;
+  useEffect(() => {
+    if (inView && !loading) fetchFeed();
+  }, [inView]);
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
+    <div className="max-w-5xl mx-auto px-4 py-6">
       {/* Header */}
       <div className="mb-6">
-        <h1 className="text-3xl font-black text-white mb-1">Explore Watch Parties</h1>
-        <p className="text-white/50">
-          {filtered.length} parties found
-          {hasFilters && " (filtered)"}
-        </p>
+        <h1 className="text-2xl font-bold text-white mb-1">Explore</h1>
+        <p className="text-gray-400 text-sm">Discover events, plans, and conversations near you</p>
       </div>
 
-      {/* Search + Filter bar */}
-      <div className="flex gap-3 mb-4">
-        <div className="flex-1 relative">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/30" />
-          <Input
-            placeholder="Search parties, venues, locations..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-9"
-          />
-        </div>
-        <Button
-          variant={showFilters ? "default" : "outline"}
-          onClick={() => setShowFilters(!showFilters)}
-          className="gap-2"
-        >
-          <SlidersHorizontal size={16} />
-          <span className="hidden sm:inline">Filters</span>
-          {hasFilters && (
-            <span className="w-2 h-2 rounded-full bg-green-400" />
-          )}
-        </Button>
-        <Button
-          variant={aiMode ? "default" : "glass"}
-          onClick={getAIRecommendations}
-          disabled={isLoading}
-          className="gap-2"
-        >
-          <Sparkles size={16} />
-          <span className="hidden sm:inline">AI Pick</span>
-        </Button>
+      {/* Type filter */}
+      <div className="flex gap-2 mb-4 overflow-x-auto pb-1 scrollbar-hide">
+        {TYPES.map((t) => (
+          <button
+            key={t}
+            onClick={() => setSelectedType(t)}
+            className={`flex-shrink-0 px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${
+              selectedType === t
+                ? "bg-emerald-500 text-white"
+                : "bg-white/5 text-gray-400 hover:text-white"
+            }`}
+          >
+            {t === "all" ? "All" : t === "events" ? "Events" : t === "tag-along" ? "Tag Along" : "Talk Along"}
+          </button>
+        ))}
       </div>
 
-      {/* Filters panel */}
-      {showFilters && (
-        <motion.div
-          initial={{ opacity: 0, height: 0 }}
-          animate={{ opacity: 1, height: "auto" }}
-          exit={{ opacity: 0, height: 0 }}
-          className="mb-5 p-4 rounded-2xl bg-white/5 border border-white/10"
-        >
-          <div className="flex flex-col sm:flex-row gap-6">
-            <div className="flex-1">
-              <p className="text-xs text-white/50 mb-2 font-semibold uppercase tracking-wider">Vibe</p>
-              <div className="flex flex-wrap gap-2">
-                {VIBE_OPTIONS.map((vibe) => (
-                  <button
-                    key={vibe}
-                    onClick={() => toggleVibe(vibe)}
-                    className={cn(
-                      "px-3 py-1.5 rounded-xl text-xs font-medium border transition-all",
-                      selectedVibes.includes(vibe)
-                        ? "bg-green-500/20 border-green-500/40 text-green-400"
-                        : "bg-white/5 border-white/10 text-white/50 hover:border-white/20"
-                    )}
-                  >
-                    {VIBE_LABELS[vibe]}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div>
-              <p className="text-xs text-white/50 mb-2 font-semibold uppercase tracking-wider">Safety</p>
-              <div className="flex flex-wrap gap-2">
-                {SAFETY_OPTIONS.map((level) => (
-                  <button
-                    key={level}
-                    onClick={() =>
-                      setSelectedSafety(selectedSafety === level ? "" : level)
-                    }
-                    className={cn(
-                      "px-3 py-1.5 rounded-xl text-xs font-medium border transition-all",
-                      selectedSafety === level
-                        ? "bg-green-500/20 border-green-500/40 text-green-400"
-                        : "bg-white/5 border-white/10 text-white/50 hover:border-white/20"
-                    )}
-                  >
-                    {level === "SAFE" ? "✅" : level === "MODERATE" ? "⚠️" : "🚨"} {level}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {hasFilters && (
+      {/* Category filter (only for events/all) */}
+      {(selectedType === "all" || selectedType === "events") && (
+        <div className="flex gap-2 mb-6 overflow-x-auto pb-1 scrollbar-hide">
+          {CATEGORIES.map((c) => (
             <button
-              onClick={clearFilters}
-              className="mt-4 flex items-center gap-1.5 text-xs text-white/40 hover:text-white/70 transition-colors"
+              key={c}
+              onClick={() => setSelectedCategory(c)}
+              className={`flex-shrink-0 px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+                selectedCategory === c
+                  ? "bg-white/15 text-white"
+                  : "text-gray-500 hover:text-gray-300"
+              }`}
             >
-              <X size={12} />
-              Clear all filters
+              {c}
             </button>
-          )}
-        </motion.div>
-      )}
-
-      {/* AI Summary */}
-      {aiMode && aiSummary && (
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mb-5 p-4 rounded-2xl bg-gradient-to-r from-green-500/10 to-emerald-500/5 border border-green-500/20"
-        >
-          <div className="flex items-start gap-2.5">
-            <Sparkles size={14} className="text-green-400 mt-0.5 flex-shrink-0" />
-            <div>
-              <p className="text-xs text-green-400 font-semibold mb-0.5">AI Recommendation</p>
-              <p className="text-sm text-white/70">{aiSummary}</p>
-            </div>
-          </div>
-        </motion.div>
-      )}
-
-      {/* Party grid */}
-      {isLoading ? (
-        <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-5">
-          {[...Array(6)].map((_, i) => (
-            <Skeleton key={i} className="h-64 rounded-2xl" />
           ))}
         </div>
-      ) : filtered.length === 0 ? (
-        <div className="text-center py-24">
-          <p className="text-4xl mb-4">🏟️</p>
-          <p className="text-white font-bold text-xl mb-2">No parties found</p>
-          <p className="text-white/40 mb-6">Try adjusting your filters or search terms</p>
-          <Button onClick={clearFilters} variant="outline">Clear Filters</Button>
+      )}
+
+      {/* Feed grid */}
+      {loading && items.length === 0 ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="bg-white/[0.03] border border-white/[0.07] rounded-2xl h-64 animate-pulse" />
+          ))}
+        </div>
+      ) : items.length === 0 ? (
+        <div className="text-center py-20 text-gray-500">
+          <Flame className="w-8 h-8 mx-auto mb-3 opacity-30" />
+          <p>Nothing here yet. Be the first to post!</p>
+          <Link href="/create" className="mt-4 inline-block text-emerald-400 text-sm hover:underline">
+            Create something →
+          </Link>
         </div>
       ) : (
-        <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-5">
-          {filtered.map((party, i) => (
-            <WatchPartyCard
-              key={party.id}
-              party={party}
-              index={i}
-              showAI={aiMode}
-              matchScore={(party as WatchParty & { matchScore?: number }).matchScore}
-              reasons={(party as WatchParty & { reasons?: string[] }).reasons}
-            />
-          ))}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <AnimatePresence>
+            {items.map((item, i) => (
+              <motion.div
+                key={`${item.type}-${(item.data as { id: string }).id}`}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.03 }}
+              >
+                {item.type === "event" && <EventCard item={item as Extract<FeedItem, { type: "event" }>} />}
+                {item.type === "tagAlong" && <TagAlongCard item={item as Extract<FeedItem, { type: "tagAlong" }>} />}
+                {item.type === "talkAlong" && <TalkAlongCard item={item as Extract<FeedItem, { type: "talkAlong" }>} />}
+              </motion.div>
+            ))}
+          </AnimatePresence>
         </div>
+      )}
+
+      {/* Infinite scroll trigger */}
+      {hasMore && <div ref={ref} className="h-10" />}
+      {!hasMore && items.length > 0 && (
+        <p className="text-center text-gray-600 text-sm py-8">You&apos;ve seen it all!</p>
       )}
     </div>
   );

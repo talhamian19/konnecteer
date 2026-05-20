@@ -1,353 +1,154 @@
 "use client";
 
 import { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { signIn } from "next-auth/react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Zap, Chrome, ChevronRight, ChevronLeft, Check } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { COUNTRIES, LANGUAGES, VIBE_TAGS, AGE_RANGES } from "@/lib/mock-data";
-import { cn } from "@/lib/utils";
+import { motion } from "framer-motion";
+import { Zap, Mail, Lock, User, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
-const STEPS = [
-  { id: 1, label: "Account" },
-  { id: 2, label: "Profile" },
-  { id: 3, label: "Preferences" },
-];
-
 export default function RegisterPage() {
-  const [step, setStep] = useState(1);
-  const [isLoading, setIsLoading] = useState(false);
+  const router = useRouter();
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
 
-  const [form, setForm] = useState({
-    name: "",
-    email: "",
-    password: "",
-    username: "",
-    nationality: "",
-    favoriteTeam: "",
-    currentCity: "",
-    languages: [] as string[],
-    goingAlone: false,
-    ageRange: "",
-    vibeTags: [] as string[],
-    bio: "",
-  });
-
-  const update = (key: string, value: unknown) =>
-    setForm((prev) => ({ ...prev, [key]: value }));
-
-  const toggleArrayItem = (key: "languages" | "vibeTags", item: string) => {
-    const arr = form[key];
-    setForm((prev) => ({
-      ...prev,
-      [key]: arr.includes(item) ? arr.filter((i) => i !== item) : [...arr, item],
-    }));
-  };
-
-  const handleSubmit = async () => {
-    setIsLoading(true);
-    // In production: create user via API
-    toast.success("Account created! Welcome to Konnecteer 🎉");
-    setTimeout(() => (window.location.href = "/dashboard"), 1200);
-  };
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (password.length < 8) {
+      toast.error("Password must be at least 8 characters");
+      return;
+    }
+    setLoading(true);
+    try {
+      const res = await fetch("/api/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, email, password }),
+      });
+      if (!res.ok) {
+        const { error } = await res.json();
+        toast.error(error || "Registration failed");
+        return;
+      }
+      // Auto sign in
+      await signIn("credentials", { email, password, redirect: false });
+      router.push("/explore");
+    } finally {
+      setLoading(false);
+    }
+  }
 
   return (
-    <div className="min-h-screen bg-gray-950 flex items-center justify-center px-4 py-12">
-      <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute top-1/3 left-1/2 -translate-x-1/2 w-96 h-96 rounded-full bg-green-500/8 blur-[120px]" />
+    <div className="min-h-screen bg-[#030712] flex items-center justify-center px-4">
+      <div className="fixed inset-0 pointer-events-none">
+        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[600px] h-[400px] bg-emerald-500/5 rounded-full blur-3xl" />
       </div>
 
       <motion.div
-        initial={{ opacity: 0, y: 30 }}
+        initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="relative w-full max-w-lg"
+        className="w-full max-w-md relative z-10"
       >
-        {/* Logo */}
         <div className="text-center mb-8">
-          <Link href="/" className="inline-flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-green-500 to-emerald-700 flex items-center justify-center">
-              <Zap size={18} className="text-white" />
+          <Link href="/" className="inline-flex items-center gap-2 mb-6">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-500 to-cyan-500 flex items-center justify-center">
+              <Zap className="w-4 h-4 text-white" />
             </div>
-            <span className="text-xl font-black text-white">Konnecteer</span>
+            <span className="font-bold bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent">
+              Konnecteer
+            </span>
           </Link>
-          <h1 className="text-2xl font-bold text-white mt-4">Create your fan profile</h1>
-          <p className="text-white/40 text-sm mt-1">Join thousands of fans worldwide</p>
+          <h1 className="text-2xl font-bold text-white">Create your account</h1>
+          <p className="text-gray-400 mt-1">Start connecting with your crowd</p>
         </div>
 
-        {/* Step indicators */}
-        <div className="flex items-center justify-center gap-2 mb-8">
-          {STEPS.map((s, i) => (
-            <div key={s.id} className="flex items-center gap-2">
-              <div
-                className={cn(
-                  "w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all",
-                  step > s.id
-                    ? "bg-green-500 text-white"
-                    : step === s.id
-                    ? "bg-green-500/20 border-2 border-green-500 text-green-400"
-                    : "bg-white/5 border border-white/20 text-white/30"
-                )}
-              >
-                {step > s.id ? <Check size={14} /> : s.id}
-              </div>
-              <span
-                className={cn(
-                  "text-xs font-medium",
-                  step >= s.id ? "text-white/70" : "text-white/20"
-                )}
-              >
-                {s.label}
-              </span>
-              {i < STEPS.length - 1 && (
-                <div className={cn("w-8 h-px", step > s.id ? "bg-green-500" : "bg-white/10")} />
-              )}
-            </div>
-          ))}
-        </div>
-
-        {/* Card */}
-        <div className="bg-white/5 border border-white/10 rounded-2xl p-8 backdrop-blur-sm">
-          <AnimatePresence mode="wait">
-            {step === 1 && (
-              <motion.div
-                key="step1"
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                className="space-y-4"
-              >
-                <Button
-                  onClick={() => toast.info("Google OAuth — configure in .env.local")}
-                  variant="outline"
-                  size="lg"
-                  className="w-full gap-3"
-                >
-                  <Chrome size={18} />
-                  Sign up with Google
-                </Button>
-
-                <div className="relative">
-                  <div className="absolute inset-0 flex items-center">
-                    <div className="w-full border-t border-white/10" />
-                  </div>
-                  <div className="relative flex justify-center">
-                    <span className="bg-transparent px-4 text-xs text-white/30">or with email</span>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="text-xs text-white/50 mb-1.5 block">Full Name</label>
-                  <Input
-                    placeholder="Your name"
-                    value={form.name}
-                    onChange={(e) => update("name", e.target.value)}
-                  />
-                </div>
-                <div>
-                  <label className="text-xs text-white/50 mb-1.5 block">Email</label>
-                  <Input
-                    type="email"
-                    placeholder="you@example.com"
-                    value={form.email}
-                    onChange={(e) => update("email", e.target.value)}
-                  />
-                </div>
-                <div>
-                  <label className="text-xs text-white/50 mb-1.5 block">Password</label>
-                  <Input
-                    type="password"
-                    placeholder="••••••••"
-                    value={form.password}
-                    onChange={(e) => update("password", e.target.value)}
-                  />
-                </div>
-              </motion.div>
-            )}
-
-            {step === 2 && (
-              <motion.div
-                key="step2"
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                className="space-y-4"
-              >
-                <div>
-                  <label className="text-xs text-white/50 mb-1.5 block">Username</label>
-                  <Input
-                    placeholder="@yourusername"
-                    value={form.username}
-                    onChange={(e) => update("username", e.target.value)}
-                  />
-                </div>
-                <div>
-                  <label className="text-xs text-white/50 mb-1.5 block">Current City</label>
-                  <Input
-                    placeholder="e.g. New York"
-                    value={form.currentCity}
-                    onChange={(e) => update("currentCity", e.target.value)}
-                  />
-                </div>
-                <div>
-                  <label className="text-xs text-white/50 mb-1.5 block">Nationality</label>
-                  <select
-                    value={form.nationality}
-                    onChange={(e) => update("nationality", e.target.value)}
-                    className="flex h-10 w-full rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-white backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-green-500/50"
-                  >
-                    <option value="" className="bg-gray-900">Select nationality</option>
-                    {COUNTRIES.map((c) => (
-                      <option key={c} value={c} className="bg-gray-900">{c}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="text-xs text-white/50 mb-1.5 block">Favorite Team</label>
-                  <select
-                    value={form.favoriteTeam}
-                    onChange={(e) => update("favoriteTeam", e.target.value)}
-                    className="flex h-10 w-full rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-white backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-green-500/50"
-                  >
-                    <option value="" className="bg-gray-900">Select team</option>
-                    {COUNTRIES.map((c) => (
-                      <option key={c} value={c} className="bg-gray-900">{c}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="text-xs text-white/50 mb-1.5 block">Bio (optional)</label>
-                  <textarea
-                    value={form.bio}
-                    onChange={(e) => update("bio", e.target.value)}
-                    placeholder="Tell other fans about yourself..."
-                    rows={3}
-                    className="flex w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder:text-white/30 backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-green-500/50 resize-none"
-                  />
-                </div>
-              </motion.div>
-            )}
-
-            {step === 3 && (
-              <motion.div
-                key="step3"
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                className="space-y-5"
-              >
-                <div>
-                  <label className="text-xs text-white/50 mb-2 block">Your Fan Vibe (select all that apply)</label>
-                  <div className="flex flex-wrap gap-2">
-                    {VIBE_TAGS.map((tag) => (
-                      <button
-                        key={tag.value}
-                        onClick={() => toggleArrayItem("vibeTags", tag.value)}
-                        className={cn(
-                          "px-3 py-1.5 rounded-xl text-xs font-medium border transition-all",
-                          form.vibeTags.includes(tag.value)
-                            ? "bg-green-500/20 border-green-500/40 text-green-400"
-                            : "bg-white/5 border-white/10 text-white/50 hover:border-white/20"
-                        )}
-                      >
-                        {tag.emoji} {tag.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div>
-                  <label className="text-xs text-white/50 mb-2 block">Languages Spoken</label>
-                  <div className="flex flex-wrap gap-2">
-                    {LANGUAGES.slice(0, 10).map((lang) => (
-                      <button
-                        key={lang}
-                        onClick={() => toggleArrayItem("languages", lang)}
-                        className={cn(
-                          "px-3 py-1.5 rounded-xl text-xs font-medium border transition-all",
-                          form.languages.includes(lang)
-                            ? "bg-blue-500/20 border-blue-500/40 text-blue-400"
-                            : "bg-white/5 border-white/10 text-white/50 hover:border-white/20"
-                        )}
-                      >
-                        {lang}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div>
-                  <label className="text-xs text-white/50 mb-2 block">Age Range</label>
-                  <div className="flex gap-2 flex-wrap">
-                    {AGE_RANGES.map((range) => (
-                      <button
-                        key={range}
-                        onClick={() => update("ageRange", range)}
-                        className={cn(
-                          "px-3 py-1.5 rounded-xl text-xs font-medium border transition-all",
-                          form.ageRange === range
-                            ? "bg-purple-500/20 border-purple-500/40 text-purple-400"
-                            : "bg-white/5 border-white/10 text-white/50 hover:border-white/20"
-                        )}
-                      >
-                        {range}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between p-4 rounded-xl bg-white/5 border border-white/10">
-                  <div>
-                    <p className="text-sm text-white font-medium">Going alone? 🙋</p>
-                    <p className="text-xs text-white/40 mt-0.5">AI will find solo-friendly groups for you</p>
-                  </div>
-                  <button
-                    onClick={() => update("goingAlone", !form.goingAlone)}
-                    className={cn(
-                      "w-12 h-6 rounded-full transition-all relative",
-                      form.goingAlone ? "bg-green-500" : "bg-white/10"
-                    )}
-                  >
-                    <div
-                      className={cn(
-                        "w-5 h-5 bg-white rounded-full absolute top-0.5 transition-all shadow-sm",
-                        form.goingAlone ? "left-6.5" : "left-0.5"
-                      )}
-                    />
-                  </button>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          {/* Navigation */}
-          <div className="flex justify-between mt-8 gap-3">
-            {step > 1 ? (
-              <Button variant="outline" onClick={() => setStep(step - 1)}>
-                <ChevronLeft size={16} />
-                Back
-              </Button>
+        <div className="bg-white/[0.03] border border-white/[0.08] rounded-2xl p-8 space-y-5">
+          <button
+            onClick={() => { setGoogleLoading(true); signIn("google", { callbackUrl: "/explore" }); }}
+            disabled={googleLoading}
+            className="w-full flex items-center justify-center gap-3 bg-white text-gray-900 rounded-xl py-3 font-medium hover:bg-gray-100 transition-colors disabled:opacity-70"
+          >
+            {googleLoading ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
             ) : (
-              <div />
+              <svg viewBox="0 0 24 24" className="w-5 h-5">
+                <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
+                <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
+                <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
+                <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
+              </svg>
             )}
+            Continue with Google
+          </button>
 
-            {step < 3 ? (
-              <Button onClick={() => setStep(step + 1)}>
-                Next
-                <ChevronRight size={16} />
-              </Button>
-            ) : (
-              <Button onClick={handleSubmit} disabled={isLoading}>
-                {isLoading ? "Creating account..." : "Create Account 🎉"}
-              </Button>
-            )}
+          <div className="flex items-center gap-3">
+            <div className="flex-1 h-px bg-white/[0.08]" />
+            <span className="text-gray-500 text-xs">or</span>
+            <div className="flex-1 h-px bg-white/[0.08]" />
           </div>
+
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="text-gray-400 text-sm mb-1.5 block">Full Name</label>
+              <div className="relative">
+                <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+                <input
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  required
+                  className="w-full bg-white/5 border border-white/10 rounded-xl pl-10 pr-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-emerald-500/50 text-sm"
+                  placeholder="Your name"
+                />
+              </div>
+            </div>
+            <div>
+              <label className="text-gray-400 text-sm mb-1.5 block">Email</label>
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  className="w-full bg-white/5 border border-white/10 rounded-xl pl-10 pr-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-emerald-500/50 text-sm"
+                  placeholder="you@example.com"
+                />
+              </div>
+            </div>
+            <div>
+              <label className="text-gray-400 text-sm mb-1.5 block">Password</label>
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  minLength={8}
+                  className="w-full bg-white/5 border border-white/10 rounded-xl pl-10 pr-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-emerald-500/50 text-sm"
+                  placeholder="Min 8 characters"
+                />
+              </div>
+            </div>
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full bg-gradient-to-r from-emerald-500 to-cyan-500 text-white rounded-xl py-3 font-semibold hover:opacity-90 transition-opacity disabled:opacity-70 flex items-center justify-center gap-2"
+            >
+              {loading && <Loader2 className="w-4 h-4 animate-spin" />}
+              Create Account
+            </button>
+          </form>
         </div>
 
-        <p className="text-center text-sm text-white/40 mt-6">
+        <p className="text-center text-gray-400 text-sm mt-6">
           Already have an account?{" "}
-          <Link href="/login" className="text-green-400 hover:underline font-medium">
+          <Link href="/login" className="text-emerald-400 hover:text-emerald-300">
             Sign in
           </Link>
         </p>

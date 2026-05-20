@@ -8,33 +8,40 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
+// ─── AUTH ──────────────────────────────────────────────────────────────────
+
 model User {
-  id            String    @id @default(cuid())
-  name          String?
-  email         String    @unique
-  emailVerified DateTime?
-  image         String?
-  username      String?   @unique
-  bio           String?
-  nationality   String?
-  favoriteTeam  String?
-  currentCity   String?
-  languages     String[]  @default([])
-  goingAlone    Boolean   @default(false)
-  ageRange      String?
-  vibeTags      String[]  @default([])
-  accounts      Account[]
-  sessions      Session[]
-  watchParties  WatchParty[] @relation("CreatedParties")
-  rsvps         RSVP[]
-  messagesSent  ChatMessage[]
-  notifications Notification[]
-  reports       Report[]     @relation("ReportedBy")
-  reported      Report[]     @relation("ReportedUser")
-  connections   FriendConnection[] @relation("UserConnections")
-  connectedTo   FriendConnection[] @relation("ConnectedUsers")
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  id               String    @id @default(cuid())
+  email            String    @unique
+  emailVerified    DateTime?
+  name             String?
+  username         String?   @unique
+  image            String?
+  bio              String?
+  dob              DateTime?
+  location         String?
+  latitude         Float?
+  longitude        Float?
+  passwordHash     String?
+  stripeCustomerId String?
+  isVerified       Boolean   @default(false)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  accounts         Account[]
+  sessions         Session[]
+  hostedEvents     Event[]          @relation("EventHost")
+  attendances      EventAttendance[]
+  tickets          Ticket[]
+  tagAlongPosts    TagAlongPost[]   @relation("TagAlongCreator")
+  tagAlongRequests TagAlongRequest[]
+  talkAlongPosts   TalkAlongPost[]  @relation("TalkAlongCreator")
+  talkAlongRequests TalkAlongRequest[]
+  messagesSent     ChatMessage[]    @relation("MessageSender")
+  chatMembers      ChatMember[]
+  notifications    Notification[]
+  reports          Report[]         @relation("Reporter")
+  payments         Payment[]
 
   @@map("users")
 }
@@ -77,172 +84,340 @@ model VerificationToken {
   @@map("verification_tokens")
 }
 
-model Team {
-  id          String   @id @default(cuid())
-  name        String
-  code        String   @unique
-  flag        String?
-  group       String?
-  homeMatches Match[]  @relation("HomeTeam")
-  awayMatches Match[]  @relation("AwayTeam")
-  createdAt   DateTime @default(now())
+// ─── EVENTS ────────────────────────────────────────────────────────────────
 
-  @@map("teams")
+model Event {
+  id            String          @id @default(cuid())
+  title         String
+  description   String          @db.Text
+  hostId        String
+  host          User            @relation("EventHost", fields: [hostId], references: [id])
+  location      String
+  address       String?
+  latitude      Float?
+  longitude     Float?
+  startTime     DateTime
+  endTime       DateTime?
+  category      EventCategory   @default(OTHER)
+  price         Float           @default(0)
+  isFree        Boolean         @default(true)
+  maxAttendees  Int?
+  coverImage    String?
+  status        EventStatus     @default(ACTIVE)
+  viewCount     Int             @default(0)
+  isBoosted     Boolean         @default(false)
+  boostExpiresAt DateTime?
+  rankScore     Float           @default(0)
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  media         EventMedia[]
+  attendances   EventAttendance[]
+  tickets       Ticket[]
+  chat          Chat?
+  hashtags      EventHashtag[]
+  boosts        BoostedEvent[]
+  reports       Report[]
+
+  @@map("events")
 }
 
-model Match {
-  id           String        @id @default(cuid())
-  homeTeamId   String
-  awayTeamId   String
-  homeTeam     Team          @relation("HomeTeam", fields: [homeTeamId], references: [id])
-  awayTeam     Team          @relation("AwayTeam", fields: [awayTeamId], references: [id])
-  kickoffTime  DateTime
-  venue        String
-  city         String
-  country      String
-  stage        String
-  status       MatchStatus   @default(UPCOMING)
-  homeScore    Int?
-  awayScore    Int?
-  watchParties WatchParty[]
-  chatMessages ChatMessage[]
-  createdAt    DateTime      @default(now())
-
-  @@map("matches")
-}
-
-enum MatchStatus {
-  UPCOMING
-  LIVE
-  FINISHED
-  POSTPONED
-}
-
-model Venue {
-  id              String       @id @default(cuid())
-  name            String
-  address         String
-  city            String
-  country         String
-  latitude        Float
-  longitude       Float
-  type            VenueType    @default(SPORTS_BAR)
-  capacity        Int?
-  imageUrl        String?
-  googlePlaceId   String?
-  atmosphereRating Float?
-  safetyRating    Float?
-  watchParties    WatchParty[]
-  createdAt       DateTime     @default(now())
-
-  @@map("venues")
-}
-
-enum VenueType {
-  SPORTS_BAR
-  STADIUM
-  FAN_ZONE
-  RESTAURANT
-  PRIVATE
-  OUTDOOR
-  HOTEL
-}
-
-model WatchParty {
-  id                String     @id @default(cuid())
-  title             String
-  description       String?
-  matchId           String?
-  match             Match?     @relation(fields: [matchId], references: [id])
-  venueId           String?
-  venue             Venue?     @relation(fields: [venueId], references: [id])
-  creatorId         String
-  creator           User       @relation("CreatedParties", fields: [creatorId], references: [id])
-  latitude          Float?
-  longitude         Float?
-  address           String?
-  vibe              PartyVibe  @default(CASUAL)
-  isPublic          Boolean    @default(true)
-  maxAttendees      Int?
-  currentAttendees  Int        @default(0)
-  safetyLevel       SafetyLevel @default(SAFE)
-  aiSummary         String?
-  crowdNationalities Json?
-  popularityScore   Float      @default(0)
-  status            PartyStatus @default(ACTIVE)
-  rsvps             RSVP[]
-  chatMessages      ChatMessage[]
-  reports           Report[]
-  imageUrl          String?
-  startTime         DateTime?
-  endTime           DateTime?
-  createdAt         DateTime   @default(now())
-  updatedAt         DateTime   @updatedAt
-
-  @@map("watch_parties")
-}
-
-enum PartyVibe {
-  HARDCORE
-  CASUAL
+enum EventCategory {
+  SPORTS
+  MUSIC
+  FOOD
+  HIKE
   PARTY
-  FAMILY
-  CHILL
-  INTERNATIONAL
+  TRAVEL
+  TECH
+  ART
+  FITNESS
+  NETWORKING
+  OTHER
 }
 
-enum SafetyLevel {
-  SAFE
-  MODERATE
-  CAUTION
-}
-
-enum PartyStatus {
+enum EventStatus {
   ACTIVE
   CANCELLED
   COMPLETED
+  DRAFT
 }
 
-model RSVP {
-  id           String     @id @default(cuid())
-  userId       String
-  watchPartyId String
-  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  watchParty   WatchParty @relation(fields: [watchPartyId], references: [id], onDelete: Cascade)
-  status       RSVPStatus @default(GOING)
-  createdAt    DateTime   @default(now())
+model EventMedia {
+  id        String   @id @default(cuid())
+  eventId   String
+  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  url       String
+  type      String   @default("image")
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
 
-  @@unique([userId, watchPartyId])
-  @@map("rsvps")
+  @@map("event_media")
 }
 
-enum RSVPStatus {
-  GOING
-  MAYBE
-  NOT_GOING
+model EventAttendance {
+  id        String   @id @default(cuid())
+  eventId   String
+  userId    String
+  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([eventId, userId])
+  @@map("event_attendances")
+}
+
+// ─── TICKETS ───────────────────────────────────────────────────────────────
+
+model Ticket {
+  id          String       @id @default(cuid())
+  eventId     String
+  userId      String
+  event       Event        @relation(fields: [eventId], references: [id])
+  user        User         @relation(fields: [userId], references: [id])
+  paymentId   String?
+  payment     Payment?     @relation(fields: [paymentId], references: [id])
+  qrCode      String       @unique @default(cuid())
+  status      TicketStatus @default(VALID)
+  scannedAt   DateTime?
+  scannedBy   String?
+  createdAt   DateTime     @default(now())
+
+  @@map("tickets")
+}
+
+enum TicketStatus {
+  VALID
+  USED
+  CANCELLED
+  REFUNDED
+}
+
+model Payment {
+  id                String        @id @default(cuid())
+  userId            String
+  user              User          @relation(fields: [userId], references: [id])
+  stripePaymentId   String?       @unique
+  stripeSessionId   String?       @unique
+  amount            Float
+  currency          String        @default("usd")
+  status            PaymentStatus @default(PENDING)
+  tickets           Ticket[]
+  createdAt         DateTime      @default(now())
+
+  @@map("payments")
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REFUNDED
+}
+
+// ─── BOOSTED EVENTS ────────────────────────────────────────────────────────
+
+model BoostedEvent {
+  id        String   @id @default(cuid())
+  eventId   String
+  event     Event    @relation(fields: [eventId], references: [id])
+  amount    Float
+  startedAt DateTime @default(now())
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@map("boosted_events")
+}
+
+// ─── TAG ALONG ─────────────────────────────────────────────────────────────
+
+model TagAlongPost {
+  id           String           @id @default(cuid())
+  creatorId    String
+  creator      User             @relation("TagAlongCreator", fields: [creatorId], references: [id])
+  title        String
+  description  String?          @db.Text
+  location     String
+  latitude     Float?
+  longitude    Float?
+  activity     String
+  scheduledAt  DateTime
+  maxPeople    Int?
+  vibeTags     String[]         @default([])
+  category     EventCategory    @default(OTHER)
+  viewCount    Int              @default(0)
+  status       PostStatus       @default(ACTIVE)
+  rankScore    Float            @default(0)
+  chat         Chat?
+  requests     TagAlongRequest[]
+  hashtags     TagAlongHashtag[]
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  @@map("tag_along_posts")
+}
+
+model TagAlongRequest {
+  id         String        @id @default(cuid())
+  postId     String
+  userId     String
+  post       TagAlongPost  @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user       User          @relation(fields: [userId], references: [id])
+  status     RequestStatus @default(PENDING)
+  createdAt  DateTime      @default(now())
+
+  @@unique([postId, userId])
+  @@map("tag_along_requests")
+}
+
+// ─── TALK ALONG ────────────────────────────────────────────────────────────
+
+model TalkAlongPost {
+  id          String             @id @default(cuid())
+  creatorId   String
+  creator     User               @relation("TalkAlongCreator", fields: [creatorId], references: [id])
+  title       String
+  description String?            @db.Text
+  topic       String
+  viewCount   Int                @default(0)
+  memberCount Int                @default(1)
+  status      PostStatus         @default(ACTIVE)
+  rankScore   Float              @default(0)
+  chat        Chat?
+  requests    TalkAlongRequest[]
+  hashtags    TalkAlongHashtag[]
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  @@map("talk_along_posts")
+}
+
+model TalkAlongRequest {
+  id        String         @id @default(cuid())
+  postId    String
+  userId    String
+  post      TalkAlongPost  @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user      User           @relation(fields: [userId], references: [id])
+  status    RequestStatus  @default(PENDING)
+  createdAt DateTime       @default(now())
+
+  @@unique([postId, userId])
+  @@map("talk_along_requests")
+}
+
+enum PostStatus {
+  ACTIVE
+  CLOSED
+  CANCELLED
+}
+
+enum RequestStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+}
+
+// ─── CHATS ─────────────────────────────────────────────────────────────────
+
+model Chat {
+  id             String      @id @default(cuid())
+  type           ChatType
+  eventId        String?     @unique
+  tagAlongPostId String?     @unique
+  talkAlongPostId String?    @unique
+  event          Event?      @relation(fields: [eventId], references: [id])
+  tagAlong       TagAlongPost? @relation(fields: [tagAlongPostId], references: [id])
+  talkAlong      TalkAlongPost? @relation(fields: [talkAlongPostId], references: [id])
+  members        ChatMember[]
+  messages       ChatMessage[]
+  createdAt      DateTime    @default(now())
+
+  @@map("chats")
+}
+
+enum ChatType {
+  PRIVATE
+  EVENT
+  TAG_ALONG
+  TALK_ALONG
+}
+
+model ChatMember {
+  id       String   @id @default(cuid())
+  chatId   String
+  userId   String
+  chat     Chat     @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id])
+  isAdmin  Boolean  @default(false)
+  joinedAt DateTime @default(now())
+
+  @@unique([chatId, userId])
+  @@map("chat_members")
 }
 
 model ChatMessage {
-  id             String      @id @default(cuid())
-  content        String      @db.Text
-  userId         String
-  user           User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  matchId        String?
-  match          Match?      @relation(fields: [matchId], references: [id])
-  watchPartyId   String?
-  watchParty     WatchParty? @relation(fields: [watchPartyId], references: [id])
-  translatedContent Json?
-  isPinned       Boolean     @default(false)
-  isMeetup       Boolean     @default(false)
-  emoji          String?
-  replyToId      String?
-  replyTo        ChatMessage? @relation("Replies", fields: [replyToId], references: [id])
-  replies        ChatMessage[] @relation("Replies")
-  isModerated    Boolean     @default(false)
-  createdAt      DateTime    @default(now())
+  id          String   @id @default(cuid())
+  chatId      String
+  senderId    String
+  chat        Chat     @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  sender      User     @relation("MessageSender", fields: [senderId], references: [id])
+  content     String   @db.Text
+  mediaUrl    String?
+  isPinned    Boolean  @default(false)
+  isDeleted   Boolean  @default(false)
+  replyToId   String?
+  replyTo     ChatMessage? @relation("Replies", fields: [replyToId], references: [id])
+  replies     ChatMessage[] @relation("Replies")
+  createdAt   DateTime @default(now())
 
   @@map("chat_messages")
 }
+
+// ─── HASHTAGS ──────────────────────────────────────────────────────────────
+
+model Hashtag {
+  id         String            @id @default(cuid())
+  tag        String            @unique
+  useCount   Int               @default(0)
+  events     EventHashtag[]
+  tagAlongs  TagAlongHashtag[]
+  talkAlongs TalkAlongHashtag[]
+  createdAt  DateTime          @default(now())
+
+  @@map("hashtags")
+}
+
+model EventHashtag {
+  eventId   String
+  hashtagId String
+  event     Event   @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  hashtag   Hashtag @relation(fields: [hashtagId], references: [id])
+
+  @@id([eventId, hashtagId])
+  @@map("event_hashtags")
+}
+
+model TagAlongHashtag {
+  postId    String
+  hashtagId String
+  post      TagAlongPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  hashtag   Hashtag      @relation(fields: [hashtagId], references: [id])
+
+  @@id([postId, hashtagId])
+  @@map("tag_along_hashtags")
+}
+
+model TalkAlongHashtag {
+  postId    String
+  hashtagId String
+  post      TalkAlongPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  hashtag   Hashtag       @relation(fields: [hashtagId], references: [id])
+
+  @@id([postId, hashtagId])
+  @@map("talk_along_hashtags")
+}
+
+// ─── NOTIFICATIONS ─────────────────────────────────────────────────────────
 
 model Notification {
   id        String           @id @default(cuid())
@@ -259,27 +434,27 @@ model Notification {
 }
 
 enum NotificationType {
-  MATCH_REMINDER
-  WATCH_PARTY_ALERT
-  AI_RECOMMENDATION
-  CHAT_UPDATE
-  RSVP_CONFIRMATION
-  FRIEND_REQUEST
-  PARTY_CANCELLED
+  EVENT_REMINDER
+  JOIN_REQUEST
+  REQUEST_ACCEPTED
+  REQUEST_DECLINED
+  NEW_MESSAGE
+  EVENT_CANCELLED
+  TICKET_PURCHASED
+  GENERAL
 }
 
+// ─── REPORTS ───────────────────────────────────────────────────────────────
+
 model Report {
-  id           String       @id @default(cuid())
-  reporterId   String
-  reporter     User         @relation("ReportedBy", fields: [reporterId], references: [id])
-  reportedUserId String?
-  reportedUser User?        @relation("ReportedUser", fields: [reportedUserId], references: [id])
-  watchPartyId String?
-  watchParty   WatchParty?  @relation(fields: [watchPartyId], references: [id])
-  reason       String
-  description  String?
-  status       ReportStatus @default(PENDING)
-  createdAt    DateTime     @default(now())
+  id         String       @id @default(cuid())
+  reporterId String
+  reporter   User         @relation("Reporter", fields: [reporterId], references: [id])
+  eventId    String?
+  event      Event?       @relation(fields: [eventId], references: [id])
+  reason     String
+  status     ReportStatus @default(PENDING)
+  createdAt  DateTime     @default(now())
 
   @@map("reports")
 }
@@ -289,23 +464,4 @@ enum ReportStatus {
   REVIEWED
   RESOLVED
   DISMISSED
-}
-
-model FriendConnection {
-  id          String           @id @default(cuid())
-  userId      String
-  user        User             @relation("UserConnections", fields: [userId], references: [id])
-  connectedId String
-  connected   User             @relation("ConnectedUsers", fields: [connectedId], references: [id])
-  status      ConnectionStatus @default(PENDING)
-  createdAt   DateTime         @default(now())
-
-  @@unique([userId, connectedId])
-  @@map("friend_connections")
-}
-
-enum ConnectionStatus {
-  PENDING
-  ACCEPTED
-  BLOCKED
 }
